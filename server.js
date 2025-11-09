@@ -7,7 +7,16 @@ import fs from "fs";
 import PDFDocument from "pdfkit";
 import OrdenPDF from "./OrdenPDF.js";
 import multer from "multer";
+import path from "path";
+import { fileURLToPath } from "url";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Ruta absoluta a la imagen
+const logoPath = path.resolve(__dirname, "public", "logo_servirrapid.png");
+
+const logo = fs.readFileSync(logoPath);
 
 dotenv.config();
 
@@ -125,7 +134,7 @@ app.post("/api/generar-pdf", upload.array("imagenes"), async (req, res) => {
 
     y = y + 110;
 
-    doc.image("public/logo_servirrapid.png", leftX + 190, 30, { width: 120 });
+    doc.image(logo, leftX + 190, 30, { width: 120 });
     doc.text("CEL.: 5549293973 - 5533321757", 0, y, { align: "center" })
 
 
