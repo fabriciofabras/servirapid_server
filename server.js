@@ -6,13 +6,17 @@ import bodyParser from "body-parser";
 import fs from "fs";
 import PDFDocument from "pdfkit";
 import OrdenPDF from "./OrdenPDF.js";
+import multer from "multer";
 
 
 dotenv.config();
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+
 
 // Conexión a MongoDB
 mongoose
@@ -77,10 +81,22 @@ orderSchema.pre("save", async function (next) {
 
 const Order = mongoose.model("Order", orderSchema, "ordenes");
 
-app.post("/api/generar-pdf", async (req, res) => {
-  try {
-    const form = req.body;
+app.post("/api/generar-pdf", upload.array("imagenes"), async (req, res) => {
 
+  console.log("req",req.body)
+
+  console.log("api/generar-pdf")
+  try {
+
+    const form = {
+      ...req.body,
+      cliente: JSON.parse(req.body.cliente || "{}"),
+      auto: JSON.parse(req.body.auto || "{}"),
+    };
+
+    // ✅ Imágenes subidas
+    const imagenes = req.files || [];
+    console.log("form:", form)
     // Guardar en Mongo y generar folio
     const nuevaOrden = new Order(form);
     await nuevaOrden.save();
@@ -105,97 +121,247 @@ app.post("/api/generar-pdf", async (req, res) => {
     // --- LOGO Y ENCABEZADO ---
     let y = doc.y;
 
-    doc.image("public/logo_servirrapid.png", leftX + 170, 30, { width: 120 });
-    doc
-      .fontSize(9)
-      .text("CEL.: 5549293973 - 5533321757", { align: "center" }, y)
-      .text("www.servirrapid.com.mx | servirrapid@hotmail.com", { align: "center", link: "http://www.servirrapid.com.mx" })
+    doc.font("Helvetica-Bold").fontSize(11).text(`${nuevaOrden.folio}`, leftX + 440, y);
+
+    y = y + 110;
+
+    doc.image("public/logo_servirrapid.png", leftX + 190, 30, { width: 120 });
+    doc.text("CEL.: 5549293973 - 5533321757", 0, y, { align: "center" })
+
+
+    doc.text("www.servirrapid.com.mx | servirrapid@hotmail.com", { align: "center", link: "http://www.servirrapid.com.mx" })
       .moveDown(2);
 
-    // --- DATOS DEL SERVICIO ---
-    doc.font("Helvetica-Bold").fontSize(11).text("DATOS DEL SERVICIO:", { underline: true }).moveDown(0.5);
-
-    doc.font("Helvetica").fontSize(10);
-    doc.text(`Técnico: ${form.tecnico}`, rightX, y);
-    doc.text(`No. de servicio: ${nuevaOrden.folio}`, leftX, y);
-    doc.text(`Fecha: ${form.fecha}`, rightX, y + 12);
-    doc.text(`Hora de asignación: ${form.horaAsignacion}`, leftX, y + 24);
-    doc.text(`Hora de contacto: ${form.horaContacto}`, rightX, y + 24);
-    doc.text(`Hora de término: ${form.horaTermino}`, leftX, y + 36);
-    doc.text(`Fecha de término: ${form.fechaTermino}`, rightX, y + 36);
-
-    doc.moveDown(3);
+    y = y + 40;
 
     // --- DATOS DEL CLIENTE ---
-    doc.font("Helvetica-Bold").fontSize(11).text("DATOS DEL PROPIETARIO O SOLICITANTE:", { underline: true });
-    y = doc.y + 5;
+    doc.font("Helvetica-Bold").fontSize(10).text("DATOS DEL PROPIETARIO O SOLICITANTE:", 60, y)
+    doc.font("Helvetica-Bold").fontSize(10).text("DATOS DEL SERVICIO:", rightX + 50, y);
+
+    doc
+      .moveTo(leftX, y + 10)   // punto inicial (x1, y1)
+      .lineTo(550, y + 10)  // punto final (x2, y2)
+      .stroke();          // dibuja la línea
+    y = y + 30;
+
+
     doc.font("Helvetica").fontSize(10);
     doc.text(`Nombre: ${form.cliente.nombre}`, leftX, y);
-    doc.text(`Teléfono: ${form.cliente.telefono}`, rightX, y);
-    doc.text(
-      `Dirección: ${form.cliente.calle} ${form.cliente.noExterior || ""} ${form.cliente.noInterior || ""}, ${form.cliente.colonia}, ${form.cliente.alcaldia}`,
-      leftX,
-      y + 15,
-      { width: 500 }
-    );
-    doc.text(`Tipo ID: ${form.cliente.tipoId || ""}`, leftX, y + 40);
+    doc.text(`Técnico: ${form.tecnico}`, rightX, y);
 
-    doc.moveDown(3);
+    y = y + 20
+    doc.text(`Fecha: ${form.fecha}`, rightX, y);
+
+    y = y + 20
+
+    doc.text(
+      `Dirección: ${form.cliente.calle} ${form.cliente.noExterior || ""} ${form.cliente.noInterior || ""}, ${form.cliente.colonia},`,
+      leftX, y
+    );
+
+    doc.text(`Hora de asignación: ${form.horaAsignacion}`, rightX, y);
+
+    y = y + 10
+
+    doc.text(
+      `${form.cliente.alcaldia}`,
+      leftX + 50, y
+    );
+
+    y = y + 10
+
+    doc.text(`Hora de contacto: ${form.horaContacto}`, rightX, y);
+
+    y = y + 20;
+
+    doc.text(`Identificación: ${form.cliente.tipoId || ""}`, leftX, y);
+    doc.text(`Hora de término: ${form.horaTermino}`, rightX, y);
+
+    y = y + 20;
+
+    doc.text(`Teléfono: ${form.cliente.telefono}`, leftX, y);
+    doc.text(`Fecha de término: ${form.fechaTermino}`, rightX, y);
+
+    y = y + 30;
+
 
     // --- TRABAJO ---
-    doc.font("Helvetica-Bold").fontSize(11).text("TRABAJO A REALIZAR:", { underline: true }).moveDown(0.5);
-    doc.font("Helvetica").text(`Tipo de trabajo: ${form.trabajo}`).moveDown(1);
+    doc.font("Helvetica-Bold").fontSize(10).text(`TRABAJO A REALIZAR:`, 60, y,);
+    doc
+      .moveTo(leftX, y + 10)   // punto inicial (x1, y1)
+      .lineTo(550, y + 10)  // punto final (x2, y2)
+      .stroke();          // dibuja la línea
+
+    y = y + 30;
+
+    doc.font("Helvetica-Bold").fontSize(10).text(`${form.trabajo}:`, leftX, y);
+    doc.font("Helvetica").fontSize(10).text(`${form.servicio}`, leftX + 35, y);
+
+    y = y + 30;
 
     // --- AUTO ---
-    doc.font("Helvetica-Bold").fontSize(11).text("DATOS DEL AUTO:", { underline: true }).moveDown(0.5);
+    doc.font("Helvetica-Bold").fontSize(10).text("DATOS DEL AUTO:", 60, y, { underline: true });
+    doc
+      .moveTo(leftX, y + 10)   // punto inicial (x1, y1)
+      .lineTo(550, y + 10)  // punto final (x2, y2)
+      .stroke();          // dibuja la línea
+
+    y = y + 30;
+
     doc.font("Helvetica").fontSize(10);
-    doc.text(`Placas: ${form.auto.placas}`, leftX);
-    doc.text(`# de serie: ${form.auto.noSerie}`, rightX);
-    doc.text(`Marca: ${form.auto.marca}`, leftX, doc.y + 12);
-    doc.text(`Tipo: ${form.auto.tipoAuto}`, rightX, doc.y);
-    doc.text(`Año: ${form.auto.anio}`, leftX, doc.y + 12).moveDown(2);
+    doc.text(`Placas: ${form.auto.placas}`, leftX, y);
+    doc.text(`No. de serie: ${form.auto.noSerie}`, leftX + 150, y);
+    doc.text(`Marca: ${form.auto.marca}`, rightX + 50, y);
+
+    y = y + 20;
+
+    doc.text(`Tipo: ${form.auto.tipoAuto}`, leftX, y);
+    doc.text(`Año: ${form.auto.anio}`, leftX + 150, y);
+
+
+
+    y = y + 30;
 
     // --- COSTOS ---
-    doc.font("Helvetica-Bold").fontSize(11).text("COSTO MATERIAL Y MANO DE OBRA:", { underline: true }).moveDown(0.5);
+    doc.font("Helvetica-Bold").fontSize(10).text("COSTO MATERIAL Y MANO DE OBRA:", 60, y);
     doc.font("Helvetica").fontSize(10);
-    doc.text(`Método de pago: ${form.pago}`, leftX);
-    doc.text(`Taller: ${form.taller}`, rightX);
-    doc.text(`Material: ${form.material}`, leftX, doc.y + 12);
-    doc.text(`Observaciones: ${form.observaciones}`, leftX, doc.y + 24);
-    doc.text(`Total: $${form.total}`, { align: "right" }).moveDown(2);
+    doc
+      .moveTo(leftX, y + 10)   // punto inicial (x1, y1)
+      .lineTo(550, y + 10)  // punto final (x2, y2)
+      .stroke();          // dibuja la línea
+
+
+    y = y + 30;
+
+    doc.text(`Método de pago: ${form.pago}`, leftX, y);
+    doc.text(`Taller: ${form.taller}`, rightX, y);
+
+    y = y + 20;
+
+    doc.text(`Material: ${form.material}`, leftX, y);
+
+    y = y + 20;
+
+    doc.text(`Observaciones: ${form.observaciones}`, leftX, y);
+    doc.font("Helvetica-Bold").fontSize(12).text(`Total: $${form.total}`, rightX, y, { align: "center" });
+
+
+    y = y + 30;
+
 
     // --- CALIDAD ---
-    doc.font("Helvetica-Bold").fontSize(11).text("Calidad del servicio:", { underline: true });
-    doc.font("Helvetica").fontSize(10).text("☐ Excelente   ☐ Bueno   ☐ Regular   ☐ Malo").moveDown(2);
+    doc.font("Helvetica-Bold").fontSize(10).text(`CALIDAD DEL SERVICIO: ${form.calidadServicio}`, leftX, y);
+
+    y = y + 20;
+    doc
+      .fontSize(9)
+      .font("Helvetica-Oblique")
+      .text("*SOLICITA AL TÉCNICO LOS TÉRMINOS Y CONDICIONES PARA OBTENER 10% DE DESCUENTO EN TU SERVICIO*", 0, y, {
+        align: "center",
+      });
 
     // --- FIRMAS ---
     const firmaY = doc.y;
     if (form.firma) {
       const imgBuffer = Buffer.from(form.firma.replace(/^data:image\/png;base64,/, ""), "base64");
-      doc.image(imgBuffer, leftX, firmaY, { width: 150 });
-      doc.text("Nombre y firma del propietario o solicitante", leftX, firmaY + 100, { width: 150, align: "center" });
+      doc.image(imgBuffer, leftX + 30, firmaY, { width: 150 });
+      doc
+        .moveTo(leftX, firmaY + 90)   // punto inicial (x1, y1)
+        .lineTo(240, firmaY + 90)  // punto final (x2, y2)
+        .stroke();
+      doc.text("Nombre y firma del propietario o solicitante", leftX, firmaY + 100);
     }
     if (form.firmaTecnico) {
       const imgBuffer = Buffer.from(form.firmaTecnico.replace(/^data:image\/png;base64,/, ""), "base64");
-      doc.image(imgBuffer, rightX, firmaY, { width: 150 });
-      doc.text("Técnico", rightX, firmaY + 100, { width: 150, align: "center" });
+      doc.image(imgBuffer, rightX + 50, firmaY, { width: 150 });
+      doc
+        .moveTo(350, firmaY + 90)   // punto inicial (x1, y1)
+        .lineTo(540, firmaY + 90)  // punto final (x2, y2)
+        .stroke();
+      doc.text("Técnico", rightX + 60, firmaY + 100, { width: 150, align: "center" });
     }
 
     // --- PIE DE PÁGINA ---
     doc.moveDown(2);
-    doc
-      .fontSize(9)
-      .font("Helvetica-Oblique")
-      .text("*SOLICITA AL TÉCNICO LOS TÉRMINOS Y CONDICIONES PARA OBTENER 10% DE DESCUENTO EN TU SERVICIO*", {
-        align: "center",
-      });
 
-    doc.end();
-  } catch (error) {
-    console.error("❌ Error generando PDF:", error);
-    res.status(500).json({ error: "Error generando el PDF" });
-  }
-});
+    // =======================
+    // 🖼️ Páginas 2+ - Imágenes
+    // =======================
+    if (imagenes.length > 0) {
+      const imgHeight = 250; // altura deseada
+      const marginY = 100; // margen superior
+      const spacing = 40; // espacio entre imágenes
+
+      let imgIndex = 0;
+
+      doc.addPage(); // comenzamos página 2
+
+      while (imgIndex < imagenes.length) {
+        const pageWidth = doc.page.width;
+
+        // --- Primera imagen ---
+        const img1 = imagenes[imgIndex];
+        const y1 = marginY;
+
+        try {
+          const img1TmpPath = `temp_${Date.now()}_${img1.originalname}`;
+          fs.writeFileSync(img1TmpPath, img1.buffer);
+
+          const { width: w1, height: h1 } = doc.openImage(img1TmpPath);
+          const aspect1 = w1 / h1;
+          const displayWidth1 = imgHeight * aspect1;
+          const x1 = (pageWidth - displayWidth1) / 2;
+
+          doc.image(img1TmpPath, x1, y1, {
+            width: displayWidth1,
+            height: imgHeight,
+          });
+
+          fs.unlinkSync(img1TmpPath); // eliminar archivo temporal
+        } catch (err) {
+          console.error("Error al agregar imagen 1:", err);
+        }
+
+        imgIndex++;
+
+        // --- Segunda imagen (si existe) ---
+        if (imgIndex < imagenes.length) {
+          const img2 = imagenes[imgIndex];
+          const y2 = marginY + imgHeight + spacing;
+
+          try {
+            const img2TmpPath = `temp_${Date.now()}_${img2.originalname}`;
+            fs.writeFileSync(img2TmpPath, img2.buffer);
+
+            const { width: w2, height: h2 } = doc.openImage(img2TmpPath);
+            const aspect2 = w2 / h2;
+            const displayWidth2 = imgHeight * aspect2;
+            const x2 = (pageWidth - displayWidth2) / 2;
+
+            doc.image(img2TmpPath, x2, y2, {
+              width: displayWidth2,
+              height: imgHeight,
+            });
+
+            fs.unlinkSync(img2TmpPath);
+          } catch (err) {
+            console.error("Error al agregar imagen 2:", err);
+          }
+
+          imgIndex++;
+        }
+
+        // Si aún hay más imágenes, agregar una nueva página
+        if (imgIndex < imagenes.length) doc.addPage();
+      }}
+
+
+      doc.end();
+    } catch (error) {
+      console.error("❌ Error generando PDF:", error);
+      res.status(500).json({ error: "Error generando el PDF" });
+    }
+  });
 
 // Endpoint GET para obtener órdenes
 app.get("/getOrders", async (req, res) => {
