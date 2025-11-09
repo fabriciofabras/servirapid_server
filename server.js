@@ -92,7 +92,7 @@ const Order = mongoose.model("Order", orderSchema, "ordenes");
 
 app.post("/api/generar-pdf", upload.array("imagenes"), async (req, res) => {
 
-  console.log("req",req.body)
+  console.log("req", req.body)
 
   console.log("api/generar-pdf")
   try {
@@ -293,84 +293,49 @@ app.post("/api/generar-pdf", upload.array("imagenes"), async (req, res) => {
     // --- PIE DE PÁGINA ---
     doc.moveDown(2);
 
-    // =======================
+
     // 🖼️ Páginas 2+ - Imágenes
     // =======================
     if (imagenes.length > 0) {
-      const imgHeight = 250; // altura deseada
-      const marginY = 100; // margen superior
-      const spacing = 40; // espacio entre imágenes
+      doc.addPage(); // nueva página después de la principal
 
-      let imgIndex = 0;
+      const imgHeight = 250;
+      const spacing = 40;
+      let y = 100;
 
-      doc.addPage(); // comenzamos página 2
-
-      while (imgIndex < imagenes.length) {
-        const pageWidth = doc.page.width;
-
-        // --- Primera imagen ---
-        const img1 = imagenes[imgIndex];
-        const y1 = marginY;
-
+      imagenes.forEach((file, index) => {
         try {
-          const img1TmpPath = `temp_${Date.now()}_${img1.originalname}`;
-          fs.writeFileSync(img1TmpPath, img1.buffer);
+          // Insertar la imagen directamente desde el buffer
+          const image = doc.openImage(file.buffer);
 
-          const { width: w1, height: h1 } = doc.openImage(img1TmpPath);
-          const aspect1 = w1 / h1;
-          const displayWidth1 = imgHeight * aspect1;
-          const x1 = (pageWidth - displayWidth1) / 2;
+          // Calcular proporciones
+          const aspect = image.width / image.height;
+          const displayWidth = imgHeight * aspect;
+          const x = (doc.page.width - displayWidth) / 2;
 
-          doc.image(img1TmpPath, x1, y1, {
-            width: displayWidth1,
-            height: imgHeight,
-          });
+          // Dibujar imagen centrada
+          doc.image(file.buffer, x, y, { width: displayWidth, height: imgHeight });
+          y += imgHeight + spacing;
 
-          fs.unlinkSync(img1TmpPath); // eliminar archivo temporal
-        } catch (err) {
-          console.error("Error al agregar imagen 1:", err);
-        }
-
-        imgIndex++;
-
-        // --- Segunda imagen (si existe) ---
-        if (imgIndex < imagenes.length) {
-          const img2 = imagenes[imgIndex];
-          const y2 = marginY + imgHeight + spacing;
-
-          try {
-            const img2TmpPath = `temp_${Date.now()}_${img2.originalname}`;
-            fs.writeFileSync(img2TmpPath, img2.buffer);
-
-            const { width: w2, height: h2 } = doc.openImage(img2TmpPath);
-            const aspect2 = w2 / h2;
-            const displayWidth2 = imgHeight * aspect2;
-            const x2 = (pageWidth - displayWidth2) / 2;
-
-            doc.image(img2TmpPath, x2, y2, {
-              width: displayWidth2,
-              height: imgHeight,
-            });
-
-            fs.unlinkSync(img2TmpPath);
-          } catch (err) {
-            console.error("Error al agregar imagen 2:", err);
+          // Si no cabe otra imagen en la misma página → crear una nueva
+          if (y + imgHeight + spacing > doc.page.height - 100 && index < imagenes.length - 1) {
+            doc.addPage();
+            y = 100;
           }
-
-          imgIndex++;
+        } catch (err) {
+          console.error("Error al insertar imagen:", err);
         }
-
-        // Si aún hay más imágenes, agregar una nueva página
-        if (imgIndex < imagenes.length) doc.addPage();
-      }}
-
-
-      doc.end();
-    } catch (error) {
-      console.error("❌ Error generando PDF:", error);
-      res.status(500).json({ error: "Error generando el PDF" });
+      });
     }
-  });
+
+
+
+    doc.end();
+  } catch (error) {
+    console.error("❌ Error generando PDF:", error);
+    res.status(500).json({ error: "Error generando el PDF" });
+  }
+});
 
 // Endpoint GET para obtener órdenes
 app.get("/getOrders", async (req, res) => {
