@@ -151,47 +151,60 @@ app.post("/api/generar-pdf", upload.array("imagenes"), async (req, res) => {
       .moveTo(leftX, y + 10)   // punto inicial (x1, y1)
       .lineTo(550, y + 10)  // punto final (x2, y2)
       .stroke();          // dibuja la línea
-    y = y + 30;
+    y = y + 25;
 
 
-    doc.font("Helvetica").fontSize(10);
-    doc.text(`Nombre: ${form.cliente.nombre}`, leftX, y);
-    doc.text(`Técnico: ${form.tecnico}`, rightX, y);
 
-    y = y + 20
-    doc.text(`Fecha: ${form.fecha}`, rightX, y);
-
-    y = y + 20
-
-    doc.text(
-      `Dirección: ${form.cliente.calle} ${form.cliente.noExterior || ""} ${form.cliente.noInterior || ""}, ${form.cliente.colonia},`,
-      leftX, y
-    );
-
-    doc.text(`Hora de asignación: ${form.horaAsignacion}`, rightX, y);
-
-    y = y + 10
-
-    doc.text(
-      `${form.cliente.alcaldia}`,
-      leftX + 50, y
-    );
-
-    y = y + 10
-
-    doc.text(`Hora de contacto: ${form.horaContacto}`, rightX, y);
+    // Nombre y técnico
+    doc.font("Helvetica-Bold").text("Nombre:", leftX, y, { continued: true });
+    doc.font("Helvetica").text(` ${form.cliente.nombre}`);
+    doc.font("Helvetica-Bold").text("Técnico:", rightX, y, { continued: true });
+    doc.font("Helvetica").text(` ${form.tecnico}`);
 
     y = y + 20;
 
-    doc.text(`Identificación: ${form.cliente.tipoId || ""}`, leftX, y);
-    doc.text(`Hora de término: ${form.horaTermino}`, rightX, y);
+    // Fecha
+    doc.font("Helvetica-Bold").text("Fecha:", rightX, y, { continued: true });
+    doc.font("Helvetica").text(` ${form.fecha}`);
 
     y = y + 20;
 
-    doc.text(`Teléfono: ${form.cliente.telefono}`, leftX, y);
-    doc.text(`Fecha de término: ${form.fechaTermino}`, rightX, y);
+    // Dirección
+    doc.font("Helvetica-Bold").text("Dirección:", leftX, y, { continued: true });
+    doc.font("Helvetica").text(
+      ` ${form.cliente.calle} ${form.cliente.noExterior || ""} ${form.cliente.noInterior || ""}, `
+    );
+    doc.font("Helvetica-Bold").text("Hora de asignación:", rightX, y, { continued: true });
+    doc.font("Helvetica").text(` ${form.horaAsignacion}`);
 
-    y = y + 30;
+    y = y + 10;
+
+    // Alcaldía
+    doc.font("Helvetica").text(`${form.cliente.colonia}, ${form.cliente.alcaldia}`, leftX + 49, y);
+
+    y = y + 10;
+
+    // Hora de contacto
+    doc.font("Helvetica-Bold").text("Hora de contacto:", rightX, y, { continued: true });
+    doc.font("Helvetica").text(` ${form.horaContacto}`);
+
+    y = y + 20;
+
+    // Identificación y hora de término
+    doc.font("Helvetica-Bold").text("Identificación:", leftX, y, { continued: true });
+    doc.font("Helvetica").text(` ${form.cliente.tipoId || ""}`);
+    doc.font("Helvetica-Bold").text("Hora de término:", rightX, y, { continued: true });
+    doc.font("Helvetica").text(` ${form.horaTermino}`);
+
+    y = y + 20;
+
+    // Teléfono y fecha de término
+    doc.font("Helvetica-Bold").text("Teléfono:", leftX, y, { continued: true });
+    doc.font("Helvetica").text(` ${form.cliente.telefono}`);
+    doc.font("Helvetica-Bold").text("Fecha de término:", rightX, y, { continued: true });
+    doc.font("Helvetica").text(` ${form.fechaTermino}`);
+
+    y = y + 25;
 
 
     // --- TRABAJO ---
@@ -201,12 +214,12 @@ app.post("/api/generar-pdf", upload.array("imagenes"), async (req, res) => {
       .lineTo(550, y + 10)  // punto final (x2, y2)
       .stroke();          // dibuja la línea
 
-    y = y + 30;
+    y = y + 25;
 
     doc.font("Helvetica-Bold").fontSize(10).text(`${form.trabajo}:`, leftX, y);
-    doc.font("Helvetica").fontSize(10).text(`${form.servicio}`, leftX + 35, y);
+    doc.font("Helvetica").fontSize(10).text(`${form.servicio}`, leftX + 40, y);
 
-    y = y + 30;
+    y = y + 25;
 
     // --- AUTO ---
     doc.font("Helvetica-Bold").fontSize(10).text("DATOS DEL AUTO:", 60, y, { underline: true });
@@ -215,7 +228,7 @@ app.post("/api/generar-pdf", upload.array("imagenes"), async (req, res) => {
       .lineTo(550, y + 10)  // punto final (x2, y2)
       .stroke();          // dibuja la línea
 
-    y = y + 30;
+    y = y + 25;
 
     doc.font("Helvetica").fontSize(10);
     doc.text(`Placas: ${form.auto.placas}`, leftX, y);
@@ -225,11 +238,18 @@ app.post("/api/generar-pdf", upload.array("imagenes"), async (req, res) => {
     y = y + 20;
 
     doc.text(`Tipo: ${form.auto.tipoAuto}`, leftX, y);
-    doc.text(`Año: ${form.auto.anio}`, leftX + 150, y);
+
+    (form.auto.anio ? undefined : {
+
+    })
+    doc.text(
+      `Año: ${form.auto.anio ? form.auto.anio : ""}`,
+      leftX + 150,
+      y
+    );
 
 
-
-    y = y + 30;
+    y = y + 25;
 
     // --- COSTOS ---
     doc.font("Helvetica-Bold").fontSize(10).text("COSTO MATERIAL Y MANO DE OBRA:", 60, y);
@@ -240,7 +260,7 @@ app.post("/api/generar-pdf", upload.array("imagenes"), async (req, res) => {
       .stroke();          // dibuja la línea
 
 
-    y = y + 30;
+    y = y + 25;
 
     doc.text(`Método de pago: ${form.pago}`, leftX, y);
     doc.text(`Taller: ${form.taller}`, rightX, y);
@@ -254,8 +274,26 @@ app.post("/api/generar-pdf", upload.array("imagenes"), async (req, res) => {
     doc.text(`Observaciones: ${form.observaciones}`, leftX, y);
     doc.font("Helvetica-Bold").fontSize(12).text(`Total: $${form.total}`, rightX, y, { align: "center" });
 
+    y += 15; // espacio entre líneas
 
-    y = y + 30;
+    // Si aplica descuento, mostrar detalle
+    if (form.descuento) {
+      const totalConDescuento = (form.total * 0.9).toFixed(2);
+
+      doc.font("Helvetica")
+        .fontSize(11)
+        .fillColor("green")
+        .text("Descuento aplicado: 10%", rightX, y, { align: "center" });
+
+      y += 15;
+
+      doc.font("Helvetica-Bold")
+        .fontSize(12)
+        .fillColor("black")
+        .text(`Total con descuento: $${totalConDescuento}`, rightX, y, { align: "center" });
+    }
+
+    y = y + 25;
 
 
     // --- CALIDAD ---
