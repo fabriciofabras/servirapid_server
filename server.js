@@ -22,7 +22,19 @@ const logo = fs.readFileSync(logoPath);
 dotenv.config();
 
 const app = express();
-app.use(cors());
+app.use(
+  cors({
+    origin: [
+      "https://servirapid.vercel.app", // tu frontend
+      "http://localhost:3000"          // útil en desarrollo
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true
+  })
+);
+app.options("*", cors());
+
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }))
