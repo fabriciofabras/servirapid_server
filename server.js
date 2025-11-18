@@ -9,6 +9,7 @@ import OrdenPDF from "./OrdenPDF.js";
 import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
+import nodemailer from "nodemailer";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,6 +23,9 @@ dotenv.config();
 
 const app = express();
 app.use(cors());
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }))
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
@@ -421,6 +425,55 @@ app.get("/api/descargar-pdf/:folio", async (req, res) => {
   }
 });
 
+app.post("/api/enviar-pdf-correo", async (req, res) => {
+
+  console.log(req.body)
+  try {
+    const { folio, email } = req.body;
+
+    if (!folio || !email) {
+      return res.status(400).json({ error: "Folio y email son requeridos" });
+    }
+
+    // Buscar PDF en Mongo
+    const ordenPDF = await OrdenPDF.findOne({ folio });
+
+    if (!ordenPDF || !ordenPDF.pdf) {
+      return res.status(404).json({ error: "PDF no encontrado" });
+    }
+
+    // Configurar envío con Gmail
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_PASS
+      }
+    });
+
+    const mailOptions = {
+      from: `"SERVIRRAPID" <${process.env.GMAIL_USER}>`,
+      to: email,
+      subject: `Orden de servicio ${folio}`,
+      text: `Adjunto encontrarás la orden de servicio con folio ${folio}.`,
+      attachments: [
+        {
+          filename: `orden-${folio}.pdf`,
+          content: ordenPDF.pdf, // <--- buffer directo desde Mongo
+          contentType: "application/pdf"
+        }
+      ]
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.json({ ok: true, message: "Correo enviado exitosamente" });
+
+  } catch (error) {
+    console.error("Error enviando correo:", error);
+    res.status(500).json({ error: "Error enviando correo" });
+  }
+});
 // Iniciar servidor
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`🚀 Servidor corriendo en puerto ${PORT}`));
