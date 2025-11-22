@@ -10,6 +10,8 @@ import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
 import nodemailer from "nodemailer";
+import { MongoClient, ObjectId } from 'mongodb';
+import bcrypt from "bcryptjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,7 +28,7 @@ app.use(
   cors({
     origin: [
       "https://servirapid.vercel.app", // tu frontend
-      "http://localhost:3000"          // útil en desarrollo
+      "http://localhost:5173"          // útil en desarrollo
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -50,6 +52,7 @@ mongoose
   })
   .then(() => console.log("✅ Conectado a MongoDB"))
   .catch((err) => console.error("❌ Error al conectar a MongoDB:", err));
+const uri = process.env.MONGO_URI;
 
 const orderSchema = new mongoose.Schema({
   folio: { type: String, unique: true },
@@ -105,6 +108,74 @@ orderSchema.pre("save", async function (next) {
 });
 
 const Order = mongoose.model("Order", orderSchema, "ordenes");
+
+let db;
+
+  const dbName = 'servirapid';
+  let usuariosCollection;
+
+  MongoClient.connect(uri)
+  .then(client => {
+    console.log('✅ Conectado a la base de datos MongoDB');
+    db = client.db(dbName);
+    usuariosCollection = db.collection('usuarios');
+  })
+  .catch(error => console.error('❌ Error conectando a MongoDB:', error));
+
+
+app.post('/login', async (req, res) => {
+
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Credentials', true);
+
+  const { usuario, password, confirmNewSession, userId } = req.body;
+
+  try {
+    // 1️⃣ Buscar usuario
+    const user = await usuariosCollection.findOne({ usuario });
+    if (!user) {
+      return res.status(404).json({ message: "El usuario no existe" });
+    }
+
+    let passwordMatch = false;
+
+    // Si la contraseña guardada parece estar hasheada (empieza con $2)
+    if (user.password && user.password.startsWith("$2")) {
+      // Comparar usando bcrypt
+      passwordMatch = await bcrypt.compare(password, user.password);
+    } else {
+      // Comparar texto plano (usuario antiguo)
+      passwordMatch = password === user.password;
+    }
+     console.log("Passwordmatch", passwordMatch)
+    if (!passwordMatch) {
+      return res.status(200).json({ message: "El usuario y/o contraseña son incorrectos" });
+    }
+
+    // 3️⃣ Si el usuario tiene una contraseña por defecto → forzar cambio
+    if (user.mustChangePassword) {
+      return res.status(200).json({
+        message: "Debe cambiar su contraseña",
+        userId: user._id,
+        usuario: user.usuario,
+        mustChangePassword: true,
+        perfil: user.perfil
+      });
+    }
+
+    console.log("✅ Usuario logueado correctamente");
+    return res.status(200).json({
+      message: "El usuario ha sido logueado",
+      perfil: user.perfil
+    });
+
+  } catch (error) {
+    console.error("Error en login:", error);
+    res.status(500).json({ message: "Error del servidor", error: error.message });
+  }
+});
 
 app.post("/api/generar-pdf", upload.array("imagenes"), async (req, res) => {
 
