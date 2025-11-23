@@ -53,16 +53,16 @@ mongoose
   .then(() => console.log("✅ Conectado a MongoDB"))
   .catch((err) => console.error("❌ Error al conectar a MongoDB:", err));
 
-  /** ---------- ESQUEMA USUARIOS (AQUÍ ESTÁ LA CORRECCIÓN) ---------- **/
-  const usuariosSchema = new mongoose.Schema({
-    usuario: String,
-    password: String,
-    perfil: String,
-    mustChangePassword: Boolean
-  });
-  
-  const Usuarios = mongoose.model("Usuarios", usuariosSchema, "usuarios");
-  
+/** ---------- ESQUEMA USUARIOS (AQUÍ ESTÁ LA CORRECCIÓN) ---------- **/
+const usuariosSchema = new mongoose.Schema({
+  usuario: String,
+  password: String,
+  perfil: String,
+  mustChangePassword: Boolean
+});
+
+const Usuarios = mongoose.model("Usuarios", usuariosSchema, "usuarios");
+
 const orderSchema = new mongoose.Schema({
   folio: { type: String, unique: true },
   fecha: String,
@@ -429,41 +429,57 @@ app.post("/api/generar-pdf", upload.array("imagenes"), async (req, res) => {
     doc.moveDown(2);
 
 
-    // 🖼️ Páginas 2+ - Imágenes
-    // =======================
     if (imagenes.length > 0) {
-      doc.addPage(); // nueva página después de la principal
+      doc.addPage(); 
 
-      const imgHeight = 250;
-      const spacing = 40;
-      let y = 100;
+      const margin = 40;
+      const cols = 2;   
+      const rows = 2;   
+      const maxImagesPerPage = cols * rows;
+
+    
+      const pageWidth = doc.page.width - margin * 2;
+      const pageHeight = doc.page.height - margin * 2;
+
+      const cellWidth = pageWidth / cols;
+      const cellHeight = pageHeight / rows;
 
       imagenes.forEach((file, index) => {
+        if (index !== 0 && index % maxImagesPerPage === 0) {
+          doc.addPage();
+        }
+
         try {
-          // Insertar la imagen directamente desde el buffer
           const image = doc.openImage(file.buffer);
 
-          // Calcular proporciones
-          const aspect = image.width / image.height;
-          const displayWidth = imgHeight * aspect;
-          const x = (doc.page.width - displayWidth) / 2;
+          const imgAspect = image.width / image.height;
 
-          // Dibujar imagen centrada
-          doc.image(file.buffer, x, y, { width: displayWidth, height: imgHeight });
-          y += imgHeight + spacing;
+          let displayWidth = cellWidth * 0.9;
+          let displayHeight = displayWidth / imgAspect;
 
-          // Si no cabe otra imagen en la misma página → crear una nueva
-          if (y + imgHeight + spacing > doc.page.height - 100 && index < imagenes.length - 1) {
-            doc.addPage();
-            y = 100;
+          if (displayHeight > cellHeight * 0.9) {
+            displayHeight = cellHeight * 0.9;
+            displayWidth = displayHeight * imgAspect;
           }
+
+          const currentCell = index % maxImagesPerPage;
+          const col = currentCell % cols;
+          const row = Math.floor(currentCell / cols);
+
+          const x = margin + col * cellWidth + (cellWidth - displayWidth) / 2;
+          const y = margin + row * cellHeight + (cellHeight - displayHeight) / 2;
+
+          // Insertar imagen
+          doc.image(file.buffer, x, y, {
+            width: displayWidth,
+            height: displayHeight,
+          });
+
         } catch (err) {
           console.error("Error al insertar imagen:", err);
         }
       });
     }
-
-
 
     doc.end();
   } catch (error) {
