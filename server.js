@@ -374,7 +374,11 @@ app.post("/api/generar-pdf", upload.array("imagenes"), async (req, res) => {
     y += 15; // espacio entre líneas
 
     // Si aplica descuento, mostrar detalle
-    if (form.descuento) {
+
+    console.log("form.descuento", form.descuento)
+    if (form.descuento === true || form.descuento === "true") {
+
+      console.log("entró")
       const totalConDescuento = (form.total * 0.9).toFixed(2);
 
       doc.font("Helvetica")
@@ -430,14 +434,14 @@ app.post("/api/generar-pdf", upload.array("imagenes"), async (req, res) => {
 
 
     if (imagenes.length > 0) {
-      doc.addPage(); 
+      doc.addPage();
 
       const margin = 40;
-      const cols = 2;   
-      const rows = 2;   
+      const cols = 2;
+      const rows = 2;
       const maxImagesPerPage = cols * rows;
 
-    
+
       const pageWidth = doc.page.width - margin * 2;
       const pageHeight = doc.page.height - margin * 2;
 
