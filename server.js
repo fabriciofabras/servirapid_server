@@ -75,6 +75,7 @@ const orderSchema = new mongoose.Schema({
     noExterior: String,
     noInterior: String,
     colonia: String,
+    alcaldia: String,
     correo: String
   },
   auto: {
