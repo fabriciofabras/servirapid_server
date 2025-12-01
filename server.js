@@ -134,6 +134,21 @@ MongoClient.connect(uri)
   .catch(error => console.error('❌ Error conectando a MongoDB:', error));
 
 
+app.put("/api/marcar-pagado/:folio", async (req, res) => {
+  try {
+    const { folio } = req.params;
+
+    await db.collection("ordenes").updateOne(
+      { folio },
+      { $set: { pagado: true, fechaPago: new Date() } }
+    );
+
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ message: "Error al marcar pagado." });
+  }
+});
+
 app.post('/login', async (req, res) => {
 
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -370,6 +385,9 @@ app.post("/api/generar-pdf", upload.array("imagenes"), async (req, res) => {
     y = y + 20;
 
     doc.text(`Observaciones: ${form.observaciones}`, leftX, y);
+
+    y = y + 40;
+
     doc.font("Helvetica-Bold").fontSize(12).text(`Total: $${form.total}`, rightX, y, { align: "center" });
 
     y += 15; // espacio entre líneas
@@ -395,7 +413,7 @@ app.post("/api/generar-pdf", upload.array("imagenes"), async (req, res) => {
         .text(`Total con descuento: $${totalConDescuento}`, rightX, y, { align: "center" });
     }
 
-    y = y + 25;
+    y = y + 15;
 
 
     // --- CALIDAD ---
